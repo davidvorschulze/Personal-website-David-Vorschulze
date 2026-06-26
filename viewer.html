@@ -4,84 +4,72 @@
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
-  canvas { display: block; }
-  #status {
-    position: absolute; top: 4px; left: 4px;
-    font: 11px monospace; color: #ff4500;
-    pointer-events: none;
-  }
+  html, body { width: 200px; height: 200px; overflow: hidden; background: transparent; }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+  #msg { position: absolute; top: 4px; left: 4px; font: 12px monospace; color: #ff4500; z-index: 10; }
 </style>
 </head>
 <body>
-<div id="status">loading...</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
-<script>
-const status = document.getElementById('status');
-const W = 200, H = 200;
+<div id="msg">...</div>
+<canvas id="c" width="200" height="200"></canvas>
+<script type="module">
+const msg = document.getElementById('msg');
+const canvas = document.getElementById('c');
 
-let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  document.body.appendChild(renderer.domElement);
+  const { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, Box3, Vector3, sRGBEncoding } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+  const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js');
+
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(devicePixelRatio);
+  renderer.outputColorSpace = 'srgb';
+
+  const scene = new Scene();
+  const camera = new PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0.5, 4.5);
+
+  scene.add(new AmbientLight(0xffeedd, 0.8));
+  const key = new DirectionalLight(0xffffff, 1.8);
+  key.position.set(3, 4, 3); scene.add(key);
+  const rim = new DirectionalLight(0xff4400, 1.0);
+  rim.position.set(-3, -1, -2); scene.add(rim);
+
+  let model = null;
+  const loader = new GLTFLoader();
+  loader.load(
+    'stylized_hyperx_headphones_game_asset.glb',
+    gltf => {
+      msg.textContent = '';
+      model = gltf.scene;
+      const box = new Box3().setFromObject(model);
+      const center = box.getCenter(new Vector3());
+      const size = box.getSize(new Vector3());
+      const s = 2.4 / Math.max(size.x, size.y, size.z);
+      model.scale.setScalar(s);
+      model.position.sub(center.multiplyScalar(s));
+      scene.add(model);
+    },
+    xhr => { msg.textContent = xhr.total ? Math.round(xhr.loaded/xhr.total*100)+'%' : '...'; },
+    err => { msg.textContent = 'ERR:' + err.message; }
+  );
+
+  let mouseX = 0;
+  window.addEventListener('message', e => {
+    if (e.data?.mouseX !== undefined) mouseX = e.data.mouseX;
+  });
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    if (model) {
+      model.rotation.y += 0.007 + mouseX * 0.008;
+      model.rotation.x = Math.sin(Date.now() * 0.0004) * 0.08;
+    }
+    renderer.render(scene, camera);
+  })();
+
 } catch(e) {
-  status.textContent = 'WebGL error: ' + e.message;
-  throw e;
+  msg.textContent = 'ERR:' + e.message;
 }
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-camera.position.set(0, 0.5, 4.5);
-
-scene.add(new THREE.AmbientLight(0xffeedd, 0.8));
-const key = new THREE.DirectionalLight(0xffffff, 1.8);
-key.position.set(3, 4, 3);
-scene.add(key);
-const rim = new THREE.DirectionalLight(0xff4400, 1.0);
-rim.position.set(-3, -1, -2);
-scene.add(rim);
-
-let model = null;
-const loader = new THREE.GLTFLoader();
-loader.load(
-  'stylized_hyperx_headphones_game_asset.glb',
-  gltf => {
-    status.textContent = '';
-    model = gltf.scene;
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const s = 2.4 / Math.max(size.x, size.y, size.z);
-    model.scale.setScalar(s);
-    model.position.sub(center.multiplyScalar(s));
-    scene.add(model);
-  },
-  xhr => {
-    const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : '?';
-    status.textContent = pct + '%';
-  },
-  err => {
-    status.textContent = 'ERR: ' + (err.message || err);
-  }
-);
-
-let mouseX = 0;
-window.addEventListener('message', e => {
-  if (e.data?.mouseX !== undefined) mouseX = e.data.mouseX;
-});
-
-(function animate() {
-  requestAnimationFrame(animate);
-  if (model) {
-    model.rotation.y += 0.007 + mouseX * 0.008;
-    model.rotation.x = Math.sin(Date.now() * 0.0004) * 0.08;
-  }
-  renderer.render(scene, camera);
-})();
 </script>
 </body>
 </html>
