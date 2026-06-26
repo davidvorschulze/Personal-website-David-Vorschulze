@@ -2,6 +2,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 200px; height: 200px; overflow: hidden; background: transparent; }
@@ -13,25 +21,25 @@
 <div id="msg">...</div>
 <canvas id="c" width="200" height="200"></canvas>
 <script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 const msg = document.getElementById('msg');
 const canvas = document.getElementById('c');
 
 try {
-  const { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, Box3, Vector3 } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
-  const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js');
-
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(devicePixelRatio);
   renderer.outputColorSpace = 'srgb';
 
-  const scene = new Scene();
-  const camera = new PerspectiveCamera(38, 1, 0.1, 100);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0.5, 4.5);
 
-  scene.add(new AmbientLight(0xffeedd, 0.8));
-  const key = new DirectionalLight(0xffffff, 1.8);
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 1.8);
   key.position.set(3, 4, 3); scene.add(key);
-  const rim = new DirectionalLight(0xff4400, 1.0);
+  const rim = new THREE.DirectionalLight(0xff4400, 1.0);
   rim.position.set(-3, -1, -2); scene.add(rim);
 
   let model = null;
@@ -41,9 +49,9 @@ try {
     gltf => {
       msg.textContent = '';
       model = gltf.scene;
-      const box = new Box3().setFromObject(model);
-      const center = box.getCenter(new Vector3());
-      const size = box.getSize(new Vector3());
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
       const s = 2.4 / Math.max(size.x, size.y, size.z);
       model.scale.setScalar(s);
       model.position.sub(center.multiplyScalar(s));
