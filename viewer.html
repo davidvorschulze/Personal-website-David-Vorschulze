@@ -6,18 +6,32 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
   canvas { display: block; }
+  #status {
+    position: absolute; top: 4px; left: 4px;
+    font: 11px monospace; color: #ff4500;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
+<div id="status">loading...</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
+const status = document.getElementById('status');
 const W = 200, H = 200;
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(W, H);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.outputEncoding = THREE.sRGBEncoding;
-document.body.appendChild(renderer.domElement);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.body.appendChild(renderer.domElement);
+} catch(e) {
+  status.textContent = 'WebGL error: ' + e.message;
+  throw e;
+}
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
@@ -33,16 +47,27 @@ scene.add(rim);
 
 let model = null;
 const loader = new THREE.GLTFLoader();
-loader.load('stylized_hyperx_headphones_game_asset.glb', gltf => {
-  model = gltf.scene;
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const s = 2.4 / Math.max(size.x, size.y, size.z);
-  model.scale.setScalar(s);
-  model.position.sub(center.multiplyScalar(s));
-  scene.add(model);
-});
+loader.load(
+  'stylized_hyperx_headphones_game_asset.glb',
+  gltf => {
+    status.textContent = '';
+    model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const s = 2.4 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(s);
+    model.position.sub(center.multiplyScalar(s));
+    scene.add(model);
+  },
+  xhr => {
+    const pct = xhr.total ? Math.round(xhr.loaded / xhr.total * 100) : '?';
+    status.textContent = pct + '%';
+  },
+  err => {
+    status.textContent = 'ERR: ' + (err.message || err);
+  }
+);
 
 let mouseX = 0;
 window.addEventListener('message', e => {
