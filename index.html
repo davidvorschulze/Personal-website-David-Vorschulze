@@ -258,11 +258,9 @@
       gap: 8px;
     }
 
-    #heroModel, #heroModel2 {
+    #heroCanvas1, #heroCanvas2 {
       display: block;
       width: 200px; height: 200px;
-      border: none;
-      background: transparent;
       filter: drop-shadow(0 0 18px rgba(255,69,0,0.45));
     }
 
@@ -1093,7 +1091,6 @@
       .site-title       { font-size: 44px; letter-spacing: 6px; }
       .edu-block        { grid-template-columns: 1fr; }
       .hero-cta         { flex-direction: column; }
-      #heroModel        { display: none; }
     }
   </style>
 </head>
@@ -1169,8 +1166,8 @@
       </div>
 
       <div class="hero-3d-wrap">
-        <iframe id="heroModel" src="viewer_test.html" scrolling="no" aria-hidden="true"></iframe>
-        <iframe id="heroModel2" src="viewer2.html" scrolling="no" aria-hidden="true"></iframe>
+        <canvas id="heroCanvas1" width="200" height="200" aria-hidden="true"></canvas>
+        <canvas id="heroCanvas2" width="200" height="200" aria-hidden="true"></canvas>
       </div>
 
     </div>
@@ -1894,12 +1891,66 @@ function initAll() {
 window.addEventListener('load',   initAll);
 window.addEventListener('resize', () => { initMain(); initStatic(); initProfileBrick(); });
 
-// Pass mouse X to iframe for rotation parallax
+let _3dMouseX = 0;
 document.addEventListener('mousemove', e => {
-  const mx = (e.clientX / window.innerWidth - 0.5) * 1.2;
-  document.getElementById('heroModel')?.contentWindow?.postMessage({ mouseX: mx }, '*');
-  document.getElementById('heroModel2')?.contentWindow?.postMessage({ mouseX: mx }, '*');
+  _3dMouseX = (e.clientX / window.innerWidth - 0.5) * 1.2;
 });
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+function initModel(canvasId, glbFile, rotDir) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(200, 200);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = 'srgb';
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0.5, 4.5);
+
+  scene.add(new THREE.AmbientLight(0xffeedd, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 1.8);
+  key.position.set(3, 4, 3); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xff4400, 1.0);
+  rim.position.set(-3, -1, -2); scene.add(rim);
+
+  let model = null;
+  new GLTFLoader().load(glbFile, gltf => {
+    model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const s = 2.4 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(s);
+    model.position.sub(center.multiplyScalar(s));
+    scene.add(model);
+  });
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    if (model) {
+      model.rotation.y += rotDir * (0.007 + (window._3dMouseX || 0) * 0.008);
+      model.rotation.x = Math.sin(Date.now() * 0.0004) * 0.08;
+    }
+    renderer.render(scene, camera);
+  })();
+}
+
+initModel('heroCanvas1', 'stylized_hyperx_headphones_game_asset.glb', 1);
+initModel('heroCanvas2', 'briefcase.glb', -1);
 </script>
 </body>
 </html>
