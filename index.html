@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAVID VORSCHULZE</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0e0b09;
+      --panel:  #131008;
+      --text:   #d4c8a8;
+      --cream:  #e8d5b0;
+      --accent: #ff4500;
+      --dim:    rgba(212,200,168,0.5);
+      --mortar: #3a2818;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'VT323', 'Courier New', monospace;
+      font-size: 20px;
+      overflow-x: hidden;
+    }
+
+    /* CRT scanlines */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.045) 3px, rgba(0,0,0,0.045) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ===========================
+       SCROLL ANIMATIONS
+    =========================== */
+
+    /* Elements start invisible, JS adds .revealed */
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+
+    .reveal.revealed {
+      animation: revealIn 0.5s steps(8, end) forwards;
+    }
+
+    .reveal-left.revealed {
+      animation: revealLeft 0.4s steps(6, end) forwards;
+    }
+
+    .reveal-right.revealed {
+      animation: revealRight 0.4s steps(6, end) forwards;
+    }
+
+    @keyframes revealIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes revealLeft {
+      from { opacity: 0; transform: translateX(-22px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes revealRight {
+      from { opacity: 0; transform: translateX(22px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Staggered children */
+    .stagger > * { opacity: 0; transform: translateY(14px); }
+    .stagger.revealed > *:nth-child(1) { animation: revealIn .4s steps(6) .05s forwards; }
+    .stagger.revealed > *:nth-child(2) { animation: revealIn .4s steps(6) .15s forwards; }
+    .stagger.revealed > *:nth-child(3) { animation: revealIn .4s steps(6) .25s forwards; }
+    .stagger.revealed > *:nth-child(4) { animation: revealIn .4s steps(6) .35s forwards; }
+    .stagger.revealed > *:nth-child(5) { animation: revealIn .4s steps(6) .45s forwards; }
+    .stagger.revealed > *:nth-child(6) { animation: revealIn .4s steps(6) .55s forwards; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal-left, .reveal-right, .stagger > * {
+        opacity: 1 !important; transform: none !important; animation: none !important;
+      }
+    }
+
+    /* ===========================
+       HEADER
+    =========================== */
+    .site-header {
+      position: relative;
+      height: 240px;
+      overflow: visible;
+    }
+
+    .nav-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(6,4,2,0.92);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 9%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .nav-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    nav { display: flex; flex-direction: column; gap: 3px; text-align: right; }
+
+    nav a {
+      font-family: 'VT323', monospace;
+      font-size: 36px;
+      color: var(--cream);
+      text-decoration: none;
+      letter-spacing: 5px;
+      opacity: 0;
+      transform: translateX(16px);
+      transition: opacity .22s, transform .22s, color .12s, letter-spacing .12s;
+    }
+
+    nav.open a              { opacity: 1; transform: translateX(0); }
+    nav.open a:nth-child(1) { transition-delay: 0.12s; }
+    nav.open a:nth-child(2) { transition-delay: 0.18s; }
+    nav.open a:nth-child(3) { transition-delay: 0.24s; }
+    nav.open a:nth-child(4) { transition-delay: 0.30s; }
+    nav.open a:nth-child(5) { transition-delay: 0.36s; }
+    nav.open a:nth-child(6) { transition-delay: 0.42s; }
+    nav.open a:nth-child(7) { transition-delay: 0.48s; }
+
+    nav a:hover {
+      color: var(--accent);
+      letter-spacing: 8px;
+      text-shadow: 0 0 14px rgba(255,69,0,.7);
+    }
+
+    #brickCanvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10;
+    }
+
+    .header-ui {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      pointer-events: none;
+    }
+
+    .site-title {
+      font-size: 64px;
+      color: var(--cream);
+      letter-spacing: 10px;
+      line-height: 1;
+      text-shadow: 3px 3px 0 rgba(0,0,0,.95), 0 0 40px rgba(255,80,0,.28);
+      animation: flicker 14s infinite;
+    }
+
+    .site-sub {
+      font-size: 17px;
+      color: rgba(232,213,176,.42);
+      letter-spacing: 6px;
+      margin-top: 5px;
+    }
+
+    .menu-btn {
+      pointer-events: all;
+      background: none;
+      border: 2px solid var(--cream);
+      color: var(--cream);
+      font-family: 'VT323', monospace;
+      font-size: 24px;
+      letter-spacing: 5px;
+      padding: 9px 22px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, box-shadow .15s;
+    }
+
+    .menu-btn::before { content: '[ '; opacity: .45; }
+    .menu-btn::after  { content: ' ]'; opacity: .45; }
+
+    .menu-btn:hover, .menu-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 16px rgba(255,69,0,.35);
+    }
+
+    .header-spacer { height: 0; }
+
+    /* ===========================
+       LAYOUT
+    =========================== */
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px 24px 70px;
+    }
+
+    section { margin-bottom: 80px; }
+
+    .sec-head {
+      position: relative;
+      height: 62px;
+      margin-bottom: 34px;
+      overflow: hidden;
+    }
+
+    .sec-head canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+    }
+
+    .sec-label {
+      position: absolute;
+      top: 50%; left: 24px;
+      transform: translateY(-50%);
+      font-size: 36px;
+      letter-spacing: 7px;
+      color: var(--cream);
+      text-shadow: 2px 2px 0 rgba(0,0,0,.95);
+      z-index: 2;
+    }
+
+    /* ===========================
+       HERO / HOME
+    =========================== */
+    .hero {
+      display: grid;
+      grid-template-columns: 210px 1fr 210px;
+      gap: 36px;
+      align-items: start;
+    }
+
+    .hero-info { padding-top: 6px; position: relative; }
+
+    /* Low-poly 3D — own column, right of hero text */
+    .hero-3d-wrap {
+      padding-top: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #heroModel, #heroModel2 {
+      display: block;
+      width: 200px; height: 200px;
+      border: none;
+      background: transparent;
+      filter: drop-shadow(0 0 18px rgba(255,69,0,0.45));
+    }
+
+    .profile-frame {
+      position: relative;
+      width: 210px; height: 250px;
+      flex-shrink: 0;
+    }
+
+    .profile-frame::before {
+      content: '';
+      position: absolute; inset: -4px;
+      border: 2px solid var(--accent);
+      z-index: 2;
+    }
+
+    .profile-frame .brick-bg { position: absolute; inset: 0; z-index: 0; }
+
+    .profile-frame img {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+      filter: none;
+      mix-blend-mode: normal;
+    }
+
+    .profile-frame .no-img {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 80px; color: rgba(232,213,176,.18);
+      background: #130f0a;
+    }
+
+    .profile-tag {
+      position: absolute;
+      bottom: -2px; right: -2px;
+      background: var(--accent);
+      color: #000;
+      font-size: 13px; letter-spacing: 2px;
+      padding: 2px 7px; z-index: 3;
+    }
+
+    .hero-name {
+      font-size: 62px;
+      color: var(--cream);
+      letter-spacing: 6px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .hero-role {
+      font-size: 22px;
+      color: var(--accent);
+      letter-spacing: 4px;
+      margin-bottom: 6px;
+    }
+
+    /* One-sentence pitch */
+    .hero-pitch {
+      font-size: 20px;
+      color: var(--dim);
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+      max-width: 520px;
+    }
+
+    .hero-location {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      color: var(--dim);
+      letter-spacing: 3px;
+      margin-bottom: 18px;
+    }
+
+    .hero-location::before { content: '//'; color: var(--accent); }
+
+    .hero-bio {
+      font-size: 21px;
+      line-height: 1.6;
+      color: var(--text);
+      max-width: 540px;
+      margin-bottom: 20px;
+      min-height: 4em; /* reserve space for typewriter */
+    }
+
+    /* Typewriter cursor */
+    .tw-cursor {
+      display: inline-block;
+      width: 10px; height: 20px;
+      background: var(--accent);
+      margin-left: 3px;
+      vertical-align: middle;
+      animation: blink .9s step-end infinite;
+    }
+
+    .hero-motto {
+      display: inline-block;
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
+      font-size: 26px;
+      letter-spacing: 3px;
+      color: rgba(232,213,176,.6);
+      font-style: italic;
+      margin-bottom: 4px;
+    }
+
+    /* CTA row */
+    .hero-cta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .cv-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: none;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      font-family: 'VT323', monospace;
+      font-size: 22px;
+      letter-spacing: 5px;
+      padding: 10px 26px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color .15s, box-shadow .15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cv-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .2s;
+      z-index: 0;
+    }
+
+    .cv-btn:hover::before { transform: scaleX(1); }
+    .cv-btn:hover { color: #000; box-shadow: 0 0 22px rgba(255,69,0,.4); }
+    .cv-btn span { position: relative; z-index: 1; }
+
+    .cv-btn .cv-icon {
+      position: relative; z-index: 1;
+      width: 20px; height: 24px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .cv-btn .cv-icon::before {
+      content: '';
+      width: 14px; height: 18px;
+      border: 2px solid currentColor;
+      position: absolute; top: 0;
+    }
+
+    .cv-btn .cv-icon::after {
+      content: '';
+      width: 8px; height: 7px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+      position: absolute; bottom: 0;
+    }
+
+    .contact-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: 2px solid #3a2818;
+      color: var(--dim);
+      font-family: 'VT323', monospace;
+      font-size: 22px;
+      letter-spacing: 5px;
+      padding: 10px 26px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+
+    .contact-btn:hover { border-color: var(--accent); color: var(--cream); }
+
+    /* ===========================
+       ABOUT — TIMELINE + SKILLS
+    =========================== */
+    /* Two-column layout: panels left, timeline right */
+    .about-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 40px;
+    }
+
+    .about-panels {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      border-left: 4px solid var(--accent);
+      padding: 22px 24px;
+    }
+
+    .panel-label {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-size: 13px;
+      letter-spacing: 3px;
+      padding: 1px 8px;
+      margin-bottom: 16px;
+    }
+
+    .panel p { line-height: 1.58; }
+
+    .skill-list {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .skill-list li {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 10px;
+      align-items: center;
+      font-size: 22px; letter-spacing: 2px;
+      color: var(--cream);
+    }
+
+    .skill-list li::before { content: '//'; color: var(--accent); font-size: 18px; }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 6px; top: 8px; bottom: 8px;
+      width: 2px;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--accent) 0px, var(--accent) 6px,
+        transparent 6px, transparent 12px
+      );
+    }
+
+    .tl-item {
+      position: relative;
+      padding: 0 0 28px 24px;
+    }
+
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      left: -4px; top: 7px;
+      width: 14px; height: 14px;
+      background: var(--bg);
+      border: 2px solid var(--accent);
+    }
+
+    .tl-item:last-child { padding-bottom: 0; }
+
+    .tl-year {
+      font-size: 15px;
+      color: var(--accent);
+      letter-spacing: 3px;
+      margin-bottom: 2px;
+    }
+
+    .tl-title {
+      font-size: 26px;
+      color: var(--cream);
+      letter-spacing: 3px;
+      margin-bottom: 2px;
+    }
+
+    .tl-sub {
+      font-size: 17px;
+      color: var(--dim);
+      letter-spacing: 2px;
+    }
+
+    /* Currently block */
+    .currently {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      border-left: 4px solid var(--accent);
+      padding: 18px 22px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    .currently-label {
+      font-size: 13px;
+      letter-spacing: 4px;
+      color: var(--accent);
+      white-space: nowrap;
+      padding-top: 3px;
+    }
+
+    .currently-items {
+      display: flex; flex-wrap: wrap; gap: 10px;
+    }
+
+    .cur-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 19px; letter-spacing: 2px; color: var(--text);
+    }
+
+    .cur-item::before { content: '//'; color: var(--accent); font-size: 15px; }
+
+    /* ===========================
+       WHAT I DO
+    =========================== */
+    .wid-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 50px;
+    }
+
+    .wid-card {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      padding: 28px 24px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .wid-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .35s steps(6, end);
+    }
+
+    .wid-card:hover::before { transform: scaleX(1); }
+
+    .wid-num {
+      font-size: 52px;
+      color: rgba(255,69,0,.12);
+      position: absolute;
+      top: 10px; right: 16px;
+      letter-spacing: 0;
+      line-height: 1;
+    }
+
+    .wid-icon {
+      font-size: 32px;
+      color: var(--accent);
+      margin-bottom: 10px;
+      letter-spacing: 0;
+    }
+
+    .wid-title {
+      font-size: 27px;
+      color: var(--cream);
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .wid-desc {
+      font-size: 18px;
+      color: rgba(212,200,168,.6);
+      line-height: 1.5;
+      letter-spacing: 1px;
+    }
+
+    /* Stats row */
+    .roster-header {
+      font-size: 14px;
+      letter-spacing: 4px;
+      color: var(--dim);
+      margin-bottom: 12px;
+    }
+
+    .roster-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 0;
+    }
+
+    .roster-card {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      border-top: 3px solid var(--accent);
+      padding: 20px 16px 16px;
+      text-align: center;
+    }
+
+    .roster-tag {
+      font-size: 13px;
+      color: var(--dim);
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .roster-name {
+      font-size: 28px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      line-height: 1;
+      display: block;
+    }
+
+    /* ===========================
+       BEATS / PROJECTS
+    =========================== */
+    .beats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .beat-card {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      border-top: 3px solid var(--accent);
+      padding: 22px 20px 18px;
+      position: relative;
+    }
+
+    .beat-status {
+      font-size: 11px;
+      letter-spacing: 3px;
+      padding: 3px 8px;
+      border: 1px solid;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    .beat-status.available  { color: #4cff7a; border-color: #4cff7a44; }
+    .beat-status.wip        { color: var(--accent); border-color: #ff450044; }
+    .beat-status.full-song  { color: var(--cream); border-color: #d4c8a844; }
+
+    .beat-title {
+      font-size: 26px;
+      color: var(--cream);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .beat-meta {
+      font-size: 14px;
+      color: var(--dim);
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+
+    .beat-player {
+      width: 100%;
+      height: 32px;
+      accent-color: var(--accent);
+      filter: sepia(1) hue-rotate(340deg) saturate(3) brightness(0.85);
+    }
+
+    .beat-placeholder {
+      border: 1px dashed #2a2010;
+      padding: 18px;
+      text-align: center;
+      font-size: 14px;
+      color: rgba(212,200,168,.2);
+      letter-spacing: 2px;
+      margin-top: 4px;
+    }
+
+    /* ===========================
+       EXPERIENCE
+    =========================== */
+    .exp-item {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 28px;
+      padding: 26px 0;
+      border-bottom: 1px solid #1c1510;
+      align-items: start;
+    }
+
+    .exp-period { font-size: 16px; letter-spacing: 2px; color: var(--accent); line-height: 1.4; padding-top: 3px; }
+    .exp-title  { font-size: 30px; color: var(--cream); letter-spacing: 3px; margin-bottom: 4px; }
+    .exp-company{ font-size: 19px; color: var(--dim); letter-spacing: 2px; margin-bottom: 10px; }
+    .exp-desc   { font-size: 19px; line-height: 1.5; color: rgba(212,200,168,.65); }
+
+    .edu-block {
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      border-left: 4px solid var(--accent);
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start; gap: 20px;
+    }
+
+    .edu-degree { font-size: 30px; color: var(--cream); letter-spacing: 3px; margin-bottom: 4px; }
+    .edu-uni    { font-size: 20px; color: var(--dim); letter-spacing: 2px; margin-bottom: 8px; }
+    .edu-desc   { font-size: 18px; line-height: 1.5; color: rgba(212,200,168,.6); }
+    .edu-badge  { background: var(--accent); color: #000; font-size: 14px; letter-spacing: 2px; padding: 3px 10px; white-space: nowrap; align-self: start; }
+
+    /* ===========================
+       MEDIA
+    =========================== */
+    .media-filters {
+      display: flex; gap: 0; margin-bottom: 28px;
+      border-bottom: 1px solid #2a1e10;
+    }
+
+    .media-filter {
+      background: none; border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--dim);
+      font-family: 'VT323', monospace;
+      font-size: 22px; letter-spacing: 4px;
+      padding: 10px 24px; cursor: pointer;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+    }
+
+    .media-filter:hover { color: var(--cream); }
+    .media-filter.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .media-grid[data-filter="video"] { grid-template-columns: repeat(2, 1fr); }
+
+    .media-card {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid #1e170e;
+      overflow: hidden;
+      cursor: pointer;
+      display: none;
+    }
+
+    .media-card.visible { display: block; }
+    .media-card:hover .media-overlay { opacity: 1; }
+    .media-card:hover .media-thumb { filter: brightness(0.55) sepia(30%); }
+
+    .media-thumb {
+      width: 100%; height: auto;
+      display: block;
+      filter: brightness(0.82) sepia(15%);
+      transition: filter .25s;
+    }
+
+    .media-thumb-placeholder {
+      width: 100%; aspect-ratio: 16/9;
+      background: #0c0908;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+
+    .media-thumb-placeholder::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        45deg, #111009 0px, #111009 8px, #0e0c07 8px, #0e0c07 16px
+      );
+    }
+
+    .media-thumb-placeholder .ph-icon {
+      position: relative; z-index: 1;
+      font-size: 38px; color: rgba(255,69,0,.25);
+    }
+
+    .media-card.portrait .media-thumb,
+    .media-card.portrait .media-thumb-placeholder { aspect-ratio: 3/4; }
+
+    .media-overlay {
+      position: absolute; inset: 0; opacity: 0;
+      transition: opacity .22s;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 14px;
+      background: linear-gradient(to top, rgba(0,0,0,.85) 0%, transparent 60%);
+    }
+
+    .media-tag {
+      display: inline-block;
+      background: var(--accent); color: #000;
+      font-size: 12px; letter-spacing: 3px;
+      padding: 1px 7px; margin-bottom: 6px; width: fit-content;
+    }
+
+    .media-caption { font-size: 20px; color: var(--cream); letter-spacing: 2px; line-height: 1.3; }
+
+    .media-card::after {
+      content: '';
+      position: absolute; top: 0; left: 0;
+      width: 0; height: 0;
+      border-top: 24px solid var(--accent);
+      border-right: 24px solid transparent;
+      opacity: 0; transition: opacity .2s;
+    }
+
+    .media-card:hover::after { opacity: 1; }
+
+    .yt-wrap {
+      position: relative; width: 100%; aspect-ratio: 16/9;
+      background: #050403;
+    }
+
+    .yt-wrap iframe {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; border: none;
+    }
+
+    /* Spotify / SoundCloud embed */
+    .embed-wrap {
+      margin-top: 28px;
+      border: 1px solid #1e170e;
+      border-left: 4px solid var(--accent);
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .embed-wrap .embed-label {
+      background: var(--panel);
+      padding: 10px 18px;
+      font-size: 14px; letter-spacing: 4px;
+      color: var(--dim);
+      border-bottom: 1px solid #1e170e;
+    }
+
+    /* Placeholder when no embed added yet */
+    .embed-placeholder {
+      background: #0c0908;
+      padding: 36px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .embed-placeholder::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        45deg, #111009 0, #111009 6px, #0d0b07 6px, #0d0b07 12px
+      );
+      opacity: 0.5;
+    }
+
+    .embed-placeholder p {
+      position: relative; z-index: 1;
+      font-size: 18px; color: rgba(212,200,168,.25);
+      letter-spacing: 3px; line-height: 1.6;
+    }
+
+    .embed-placeholder code {
+      display: block;
+      margin-top: 10px;
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      color: rgba(255,69,0,.35);
+      letter-spacing: 2px;
+    }
+
+    .media-empty {
+      display: none; grid-column: 1 / -1;
+      text-align: center; padding: 48px;
+      color: rgba(212,200,168,.2);
+      font-size: 22px; letter-spacing: 4px;
+    }
+
+    /* Lightbox */
+    .lightbox {
+      display: none; position: fixed; inset: 0;
+      z-index: 8000; background: rgba(0,0,0,.93);
+      align-items: center; justify-content: center; padding: 24px;
+    }
+
+    .lightbox.open { display: flex; }
+
+    .lightbox-inner { position: relative; max-width: 1000px; width: 100%; }
+
+    .lightbox-inner img {
+      width: 100%; max-height: 82vh;
+      object-fit: contain; display: block;
+      filter: sepia(8%) contrast(1.04);
+    }
+
+    .lightbox-close {
+      position: absolute; top: -38px; right: 0;
+      background: none; border: none;
+      color: var(--cream);
+      font-family: 'VT323', monospace;
+      font-size: 28px; letter-spacing: 3px;
+      cursor: pointer; opacity: .6;
+      transition: opacity .15s, color .15s;
+    }
+
+    .lightbox-close:hover { opacity: 1; color: var(--accent); }
+
+    .lightbox-caption {
+      margin-top: 10px; font-size: 20px;
+      color: var(--dim); letter-spacing: 3px; text-align: center;
+    }
+
+    /* ===========================
+       CONTACT
+    =========================== */
+    .contact-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 40px;
+    }
+
+    .field { margin-bottom: 18px; }
+
+    .field label {
+      display: block; font-size: 16px;
+      letter-spacing: 4px; color: rgba(212,200,168,.45); margin-bottom: 6px;
+    }
+
+    .field input, .field textarea {
+      width: 100%; background: #0f0c08;
+      border: 1px solid #201810; border-left: 3px solid #2e2010;
+      color: var(--cream); font-family: 'VT323', monospace;
+      font-size: 21px; padding: 9px 14px; outline: none;
+      transition: border-color .2s;
+    }
+
+    .field input:focus, .field textarea:focus {
+      border-color: #3a2818; border-left-color: var(--accent);
+    }
+
+    .field textarea { height: 110px; resize: vertical; }
+
+    .send-btn {
+      background: var(--accent); border: none;
+      color: #000; font-family: 'VT323', monospace;
+      font-size: 23px; letter-spacing: 5px;
+      padding: 10px 36px; cursor: pointer;
+      transition: background .15s, box-shadow .15s;
+    }
+
+    .send-btn:hover { background: #ff6600; box-shadow: 0 0 20px rgba(255,69,0,.4); }
+
+    .social-col { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+
+    .social-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: var(--panel); border: 1px solid #1e170e;
+      text-decoration: none; color: var(--text);
+      font-size: 22px; letter-spacing: 3px;
+      transition: border-color .15s, color .15s;
+    }
+
+    .social-link::before { content: '//'; color: var(--accent); font-size: 18px; }
+    .social-link:hover { border-color: #3a2810; color: var(--cream); }
+
+    .social-link.placeholder { opacity: 0.35; cursor: default; pointer-events: none; }
+
+    /* ===========================
+       FOOTER
+    =========================== */
+    footer {
+      position: relative; height: 84px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    footer canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .footer-text {
+      position: relative; z-index: 2;
+      font-size: 16px; color: rgba(212,200,168,.35); letter-spacing: 4px;
+    }
+
+    /* ===========================
+       KEYFRAMES
+    =========================== */
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes flicker {
+      0%,92%,100%{opacity:1} 93%{opacity:.85} 94%{opacity:1} 95%{opacity:.68} 96%{opacity:1}
+    }
+
+    /* ===========================
+       RESPONSIVE
+    =========================== */
+    @media (max-width: 700px) {
+      .hero             { grid-template-columns: 1fr; }
+      .hero-3d-wrap     { display: none; }  /* hidden on mobile */
+      .about-layout     { grid-template-columns: 1fr; }
+      .about-grid       { grid-template-columns: 1fr; }
+      .wid-grid         { grid-template-columns: 1fr; }
+      .beats-grid       { grid-template-columns: 1fr; }
+      .roster-row       { grid-template-columns: repeat(3, 1fr); }
+      .exp-item         { grid-template-columns: 1fr; }
+      .contact-layout   { grid-template-columns: 1fr; }
+      .media-grid       { grid-template-columns: repeat(2, 1fr); }
+      .site-title       { font-size: 44px; letter-spacing: 6px; }
+      .edu-block        { grid-template-columns: 1fr; }
+      .hero-cta         { flex-direction: column; }
+      #heroModel        { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===========================
+     HEADER
+=========================== -->
+<header class="site-header" id="siteHeader">
+
+  <div class="nav-overlay">
+    <nav id="mainNav">
+      <a href="#home"       onclick="navigateTo('home');return false;">HOME //</a>
+      <a href="#about"      onclick="navigateTo('about');return false;">ABOUT //</a>
+      <a href="#whatido"    onclick="navigateTo('whatido');return false;">WHAT I DO //</a>
+      <a href="#projects"   onclick="navigateTo('projects');return false;">BEATS //</a>
+      <a href="#media"      onclick="navigateTo('media');return false;">MEDIA //</a>
+      <a href="#contact"    onclick="navigateTo('contact');return false;">CONTACT //</a>
+    </nav>
+  </div>
+
+  <canvas id="brickCanvas"></canvas>
+
+  <div class="header-ui">
+    <div>
+      <div class="site-title">D. VORSCHULZE</div>
+      <div class="site-sub">// BAD SAAROW · GERMANY //</div>
+    </div>
+    <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">MENU</button>
+  </div>
+</header>
+
+<div class="header-spacer"></div>
+
+<!-- ===========================
+     MAIN
+=========================== -->
+<main>
+
+  <!-- ── HOME ── -->
+  <section id="home">
+    <div class="sec-head"><canvas data-brick></canvas><span class="sec-label">// HOME</span></div>
+
+    <div class="hero">
+      <div class="profile-frame reveal reveal-left">
+        <canvas class="brick-bg" data-brick-small></canvas>
+        <img src="photos/pb.jpg" alt="David Vorschulze — portrait"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <div class="no-img" style="display:none;">D</div>
+        <div class="profile-tag">DV</div>
+      </div>
+
+      <div class="hero-info reveal">
+        <div class="hero-name">DAVID<br>VORSCHULZE</div>
+        <div class="hero-role">STUDENT · MUSIC COLLECTIVE LEADER</div>
+
+        <div class="hero-location">Bad Saarow, Brandenburg, Germany</div>
+
+        <!-- Typewriter bio -->
+        <p class="hero-bio" id="heroBio" aria-label="About David Vorschulze"></p>
+
+        <div class="hero-motto">"Sky is the limit."</div>
+
+        <div class="hero-cta">
+          <a href="cv/Lebenslauf.pdf" download="David_Vorschulze_CV.pdf" class="cv-btn">
+            <span class="cv-icon"></span>
+            <span>DOWNLOAD CV</span>
+          </a>
+          <a href="#contact" onclick="navigateTo('contact');return false;" class="contact-btn">
+            GET IN TOUCH //
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-3d-wrap">
+        <iframe id="heroModel" src="viewer.html" scrolling="no" aria-hidden="true"></iframe>
+        <iframe id="heroModel2" src="viewer2.html" scrolling="no" aria-hidden="true"></iframe>
+      </div>
+
+    </div>
+
+    <!-- About content — merged into home, no separate header -->
+    <div id="about" class="about-layout reveal">
+      <!-- Left: WHO I AM + SKILLS stacked -->
+      <div class="about-panels">
+        <div class="panel">
+          <div class="panel-label">WHO I AM</div>
+          <p>
+            I'm David driven by the ambition to build something that lasts.
+            Alongside my studies I invest my time in music and people:
+            connecting local artists, running sessions and proving that
+            more is possible than most people think.
+            Ambitious, direct, always close to the sound.
+          </p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-label">SKILLS</div>
+          <ul class="skill-list">
+            <li>COMMUNICATION</li>
+            <li>BUSINESS KNOWLEDGE</li>
+            <li>AUDIO ENGINEERING</li>
+            <li>TEAM COORDINATION</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right: Timeline -->
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-year">2024 — PRESENT</div>
+          <div class="tl-title">MUSIC COLLECTIVE</div>
+          <div class="tl-sub">Own Initiative · Bad Saarow</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">2024 — PRESENT</div>
+          <div class="tl-title">BSc. EUROPEAN BUSINESS MANAGEMENT</div>
+          <div class="tl-sub">TH Wildau · Technische Hochschule Wildau</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">PRIOR</div>
+          <div class="tl-title">FAMILY REAL ESTATE BUSINESS</div>
+          <div class="tl-sub">Brandenburg</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">PRIOR</div>
+          <div class="tl-title">RETAIL EMPLOYEE</div>
+          <div class="tl-sub">Supermarket</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Currently -->
+  </section>
+
+  <!-- ── WHAT I DO ── -->
+  <section id="whatido">
+    <div class="sec-head"><canvas data-brick></canvas><span class="sec-label">// WHAT I DO</span></div>
+
+    <div class="wid-grid stagger">
+      <div class="wid-card">
+        <div class="wid-num">01</div>
+        <div class="wid-icon">[ ✦ ]</div>
+        <div class="wid-title">CREATIVE DIRECTION</div>
+        <div class="wid-desc">
+          Leading the full creative vision — music, video,
+          artwork and visual identity. Every release,
+          every shoot, every detail. Not just the sound
+          but the whole picture.
+        </div>
+      </div>
+
+      <div class="wid-card">
+        <div class="wid-num">02</div>
+        <div class="wid-icon">[ ◈ ]</div>
+        <div class="wid-title">BUSINESS</div>
+        <div class="wid-desc">
+          Applying European Business Management knowledge
+          to real-world structures: planning, budgeting,
+          communication and strategic thinking.
+        </div>
+      </div>
+
+      <div class="wid-card">
+        <div class="wid-num">03</div>
+        <div class="wid-icon">[ ⏺ ]</div>
+        <div class="wid-title">STUDIO SESSIONS</div>
+        <div class="wid-desc">
+          Book a session with us — we record, mix and
+          master your track in-house. From raw vocals
+          to a finished, release-ready sound.
+          Direct. Professional. Underground.
+        </div>
+      </div>
+    </div>
+
+    <!-- Roster -->
+    <div class="roster-header">// CURRENT ROSTER</div>
+    <div class="roster-row stagger">
+      <div class="roster-card">
+        <div class="roster-tag">// ARTIST</div>
+        <span class="roster-name">CROOKS</span>
+      </div>
+      <div class="roster-card">
+        <div class="roster-tag">// ARTIST</div>
+        <span class="roster-name">CHIEF</span>
+      </div>
+      <div class="roster-card">
+        <div class="roster-tag">// ARTIST</div>
+        <span class="roster-name">BIC</span>
+      </div>
+      <div class="roster-card">
+        <div class="roster-tag">// ARTIST</div>
+        <span class="roster-name">MAUKE</span>
+      </div>
+      <div class="roster-card">
+        <div class="roster-tag">// ARTIST</div>
+        <span class="roster-name">DAMI</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BEATS ── -->
+  <section id="projects">
+    <div class="sec-head"><canvas data-brick></canvas><span class="sec-label">// BEATS</span></div>
+
+    <!--
+    HOW TO ADD A BEAT:
+    Copy a .beat-card block below, set the title, meta (BPM, key, vibe),
+    status class: available | wip | full-song
+    If you have an MP3: replace the .beat-placeholder with:
+      <audio class="beat-player" controls src="beats/your-file.mp3"></audio>
+    -->
+
+    <div class="beats-grid stagger">
+
+      <div class="beat-card">
+        <span class="beat-status available">// AVAILABLE</span>
+        <div class="beat-title">122 A#MIN</div>
+        <div class="beat-meta">122 BPM · A# MIN</div>
+        <audio class="beat-player" controls src="beats/122 Amin.mp3"></audio>
+      </div>
+
+      <div class="beat-card">
+        <span class="beat-status full-song">// FULL SONG</span>
+        <div class="beat-title">SO WEIT WEG</div>
+        <div class="beat-meta">C# MIN · FINISHED</div>
+        <audio class="beat-player" controls src="beats/SO WEIT WEG FINISHED Cmin.mp3"></audio>
+      </div>
+
+      <div class="beat-card">
+        <span class="beat-status wip">// IN PROGRESS</span>
+        <div class="beat-title">WHERE R U</div>
+        <div class="beat-meta">— — —</div>
+        <audio class="beat-player" controls src="beats/WHERE R U .mp3"></audio>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ── MEDIA ── -->
+  <section id="media">
+    <div class="sec-head"><canvas data-brick></canvas><span class="sec-label">// MEDIA</span></div>
+
+    <div class="media-filters">
+      <button class="media-filter active" onclick="filterMedia(event,'all')">ALL //</button>
+      <button class="media-filter" onclick="filterMedia(event,'photo')">PHOTOS //</button>
+      <button class="media-filter" onclick="filterMedia(event,'bts')">BEHIND THE SCENES //</button>
+      <button class="media-filter" onclick="filterMedia(event,'video')">VIDEOS //</button>
+    </div>
+
+    <!--
+    ══════════════════════════════════════════════════════════════
+    HOW TO ADD CONTENT — just replace a placeholder block:
+
+    PHOTO:
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('filename.jpg','My Caption')">
+        <img class="media-thumb" src="filename.jpg" alt="Brief description">
+        <div class="media-overlay">
+          <div class="media-tag">PHOTO</div>
+          <div class="media-caption">My Caption</div>
+        </div>
+      </div>
+
+    BEHIND THE SCENES:
+      Same as photo — change data-type="bts" and tag to "BTS"
+
+    YOUTUBE VIDEO:
+      <div class="media-card visible" data-type="video">
+        <div class="yt-wrap">
+          <iframe src="https://www.youtube.com/embed/YOUR_VIDEO_ID"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowfullscreen title="Video title"></iframe>
+        </div>
+        <div class="media-overlay" style="pointer-events:none;">
+          <div class="media-tag">VIDEO</div>
+          <div class="media-caption">Video Title</div>
+        </div>
+      </div>
+
+    FLYER / POSTER (portrait):
+      Same as photo — add class="media-card portrait visible"
+    ══════════════════════════════════════════════════════════════
+    -->
+
+    <div class="media-grid" id="mediaGrid">
+
+      <div class="media-card visible" data-type="video">
+        <video class="media-thumb" src="photos/video.mp4"
+               controls muted playsinline style="width:100%;aspect-ratio:9/16;object-fit:cover;display:block;"></video>
+        <div class="media-overlay" style="pointer-events:none;">
+          <div class="media-tag">VIDEO</div>
+          <div class="media-caption">Video</div>
+        </div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/043bb2df-aa75-4e90-b58e-c1d4fc8017b7.JPG','Photo')">
+        <img class="media-thumb" src="photos/043bb2df-aa75-4e90-b58e-c1d4fc8017b7.JPG" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/IMG_0719 2.jpg','Photo')">
+        <img class="media-thumb" src="photos/IMG_0719 2.jpg" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/IMG_1104 2.jpg','Photo')">
+        <img class="media-thumb" src="photos/IMG_1104 2.jpg" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/IMG_1135 2.jpg','Photo')">
+        <img class="media-thumb" src="photos/IMG_1135 2.jpg" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/IMG_1215.jpg','Photo')">
+        <img class="media-thumb" src="photos/IMG_1215.jpg" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-card visible" data-type="photo" onclick="openLightbox('photos/IMG_3900.PNG','Photo')">
+        <img class="media-thumb" src="photos/IMG_3900.PNG" alt="Photo">
+        <div class="media-overlay"><div class="media-tag">PHOTO</div><div class="media-caption">Photo</div></div>
+      </div>
+
+      <div class="media-empty" id="mediaEmpty">// NO ITEMS //</div>
+    </div>
+
+    <!-- Music embed — Spotify OR SoundCloud -->
+    <div class="embed-wrap">
+      <div class="embed-label">// MUSIC //</div>
+      <!--
+        SPOTIFY:  replace the div below with:
+          <iframe style="border-radius:0" src="https://open.spotify.com/embed/TRACK_OR_PLAYLIST_ID?utm_source=generator&theme=0"
+                  width="100%" height="152" frameBorder="0" allowfullscreen=""
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"></iframe>
+
+        SOUNDCLOUD:  replace with the embed code from SoundCloud → Share → Embed
+      -->
+      <iframe style="border-radius:0"
+        src="https://open.spotify.com/embed/artist/0m0pCzYIzesSrdQ5ODf2sP?utm_source=generator&theme=0"
+        width="100%" height="352" frameBorder="0" allowfullscreen=""
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"></iframe>
+    </div>
+  </section>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <div class="lightbox-inner">
+      <button class="lightbox-close" onclick="closeLightbox()">[ CLOSE X ]</button>
+      <img id="lightboxImg" src="" alt="">
+      <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
+  </div>
+
+  <!-- ── CONTACT ── -->
+  <section id="contact">
+    <div class="sec-head"><canvas data-brick></canvas><span class="sec-label">// CONTACT</span></div>
+
+    <div class="contact-layout">
+      <div>
+        <div class="field"><label>NAME //</label><input type="text" placeholder="Your name..."></div>
+        <div class="field"><label>EMAIL //</label><input type="email" placeholder="your@mail.com"></div>
+        <div class="field"><label>MESSAGE //</label><textarea placeholder="What do you want to say..."></textarea></div>
+        <button class="send-btn">SEND //</button>
+      </div>
+
+      <div class="social-col">
+        <!--
+          Replace href="#" with your real links.
+          Remove class="placeholder" once the link is real.
+        -->
+        <a href="https://www.instagram.com/heizirecords/" target="_blank" rel="noopener" class="social-link" aria-label="Instagram">INSTAGRAM</a>
+        <a href="#" class="social-link placeholder" aria-label="YouTube">YOUTUBE</a>
+        <a href="#" class="social-link placeholder" aria-label="SoundCloud">SOUNDCLOUD</a>
+        <a href="https://open.spotify.com/artist/0m0pCzYIzesSrdQ5ODf2sP" target="_blank" rel="noopener" class="social-link" aria-label="Spotify">SPOTIFY</a>
+        <a href="mailto:YOUREMAIL@EXAMPLE.COM" class="social-link placeholder" aria-label="Email">EMAIL</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <canvas id="footerCanvas"></canvas>
+  <div class="footer-text">// DAVID VORSCHULZE // BAD SAAROW, GERMANY // 2026 //</div>
+</footer>
+
+<!-- 3D model viewer is in viewer.html, embedded via iframe -->
+
+<script>
+/* ================================================================
+   BRICK CONFIG
+================================================================ */
+const BH = 34, BW = 88, MS = 5;
+const CH = BH + MS, CW = BW + MS;
+const GRAVITY = 1100;
+const PALETTE  = ['#8B3000','#7a2600','#9a3800','#6b2200','#8a2e00','#963200','#732800'];
+const MORTAR_C = '#3a2818';
+const ST = { WALL:'wall', WAIT:'wait', FALL:'fall', GONE:'gone', RET:'ret' };
+
+let bricks = [], menuOpen = false, animId = null, lastTs = 0;
+let holeCX = 0, holeCY = 0, canvasW = 0, canvasH = 0;
+
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+class Brick {
+  constructor(row, col, x, y, cidx) {
+    this.row = row; this.col = col;
+    this.ox = x; this.oy = y;
+    this.x  = x; this.y  = y;
+    this.w  = BW; this.h  = BH;
+    this.cidx = cidx;
+    this.state = ST.WALL;
+    this.vx = 0; this.vy = 0;
+    this.rot = 0; this.vrot = 0;
+    this.delay = 0;
+  }
+  get color() { return PALETTE[this.cidx]; }
+}
+
+function buildGrid(W, H) {
+  bricks = [];
+  const rows = Math.ceil(H / CH) + 1;
+  const cols = Math.ceil(W / CW) + 2;
+  for (let r = 0; r < rows; r++) {
+    const off = (r % 2) ? CW / 2 : 0;
+    for (let c = -1; c < cols; c++) {
+      bricks.push(new Brick(r, c, c * CW - off, r * CH,
+        Math.abs((r * 3 + c * 7 + 11) % PALETTE.length)));
+    }
+  }
+}
+
+/* ================================================================
+   DRAW HELPERS
+================================================================ */
+function drawBrickAt(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = 'rgba(255,200,140,0.07)';
+  ctx.fillRect(x, y, w, 3);
+  ctx.fillRect(x, y, 3, h);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(x, y + h - 3, w, 3);
+  ctx.fillRect(x + w - 3, y, 3, h);
+}
+
+function fillWall(ctx, W, H, bh, bw, ms) {
+  ctx.fillStyle = MORTAR_C;
+  ctx.fillRect(0, 0, W, H);
+  const rH = bh + ms, rW = bw + ms;
+  const rows = Math.ceil(H / rH) + 1;
+  const cols = Math.ceil(W / rW) + 2;
+  for (let r = 0; r < rows; r++) {
+    const off = (r % 2) ? rW / 2 : 0;
+    for (let c = -1; c < cols; c++) {
+      drawBrickAt(ctx, c * rW - off, r * rH, bw, bh,
+        PALETTE[Math.abs((r * 3 + c * 7 + 11) % PALETTE.length)]);
+    }
+  }
+}
+
+/* ================================================================
+   MAIN CANVAS RENDER
+================================================================ */
+function renderMain() {
+  const canvas = document.getElementById('brickCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = MORTAR_C;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const b of bricks)
+    if (b.state === ST.WALL || b.state === ST.WAIT)
+      drawBrickAt(ctx, b.x, b.y, b.w, b.h, b.color);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  for (const b of bricks)
+    if (b.state === ST.FALL || b.state === ST.GONE || b.state === ST.RET)
+      ctx.fillRect(b.ox - MS * 0.5, b.oy - MS * 0.5, BW + MS, BH + MS);
+  ctx.restore();
+
+  for (const b of bricks) {
+    if (b.state === ST.FALL || b.state === ST.RET) {
+      ctx.save();
+      ctx.translate(b.x + b.w * 0.5, b.y + b.h * 0.5);
+      ctx.rotate(b.rot);
+      drawBrickAt(ctx, -b.w * 0.5, -b.h * 0.5, b.w, b.h, b.color);
+      ctx.restore();
+    }
+  }
+}
+
+/* ================================================================
+   PHYSICS
+================================================================ */
+function updateBricks(dt) {
+  let any = false;
+  for (const b of bricks) {
+    if (b.state === ST.WAIT) {
+      b.delay -= dt;
+      if (b.delay <= 0) {
+        b.state = ST.FALL;
+        b.vx   = ((b.ox + b.w * 0.5) - holeCX) * 0.04 + (Math.random() - 0.5) * 18;
+        b.vy   = -(Math.random() * 60 + 10);
+        b.vrot = (Math.random() - 0.5) * 5;
+      }
+      any = true;
+    } else if (b.state === ST.FALL) {
+      b.vy += GRAVITY * dt;
+      b.x  += b.vx * dt; b.y += b.vy * dt; b.rot += b.vrot * dt;
+      if (b.y > canvasH + 80) {
+        b.state = ST.GONE;
+        b.x = b.ox; b.y = canvasH + 120 + Math.random() * 60;
+        b.rot = (Math.random() - 0.5) * 1.2;
+      }
+      any = true;
+    } else if (b.state === ST.RET) {
+      if (b.delay > 0) { b.delay -= dt; any = true; }
+      else {
+        const spd = Math.min(1, dt * 9);
+        b.x += (b.ox - b.x) * spd;
+        b.y += (b.oy - b.y) * spd;
+        b.rot += (0 - b.rot) * spd;
+        if (Math.abs(b.x - b.ox) < 0.8 && Math.abs(b.y - b.oy) < 0.8) {
+          b.x = b.ox; b.y = b.oy; b.rot = 0; b.vx = 0; b.vy = 0; b.state = ST.WALL;
+        } else { any = true; }
+      }
+    }
+  }
+  return any;
+}
+
+function loop(ts) {
+  const dt = Math.min((ts - lastTs) / 1000, 0.05);
+  lastTs = ts;
+  const active = updateBricks(dt);
+  renderMain();
+  animId = active ? requestAnimationFrame(loop) : null;
+}
+
+function startLoop() {
+  if (animId) return;
+  lastTs = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+/* ================================================================
+   OPEN / CLOSE HOLE
+================================================================ */
+function openHole() {
+  const maxRx = CW * 4.2, maxRy = CH * 4.8;
+  for (const b of bricks) {
+    if (b.state !== ST.WALL) continue;
+    const nx = ((b.ox + b.w * 0.5) - holeCX) / maxRx;
+    const ny = ((b.oy + b.h * 0.5) - holeCY) / maxRy;
+    const d  = Math.sqrt(nx * nx + ny * ny);
+    if (d <= 1) { b.state = ST.WAIT; b.delay = d * 0.32; }
+  }
+}
+
+function closeHole() {
+  for (const b of bricks) {
+    if (b.state === ST.WAIT) {
+      b.state = ST.WALL;
+    } else if (b.state === ST.FALL || b.state === ST.GONE) {
+      b.state = ST.RET;
+      b.x = b.ox + (Math.random() - 0.5) * 40;
+      b.y = canvasH + 80 + Math.random() * 80;
+      b.rot = (Math.random() - 0.5) * 1.4;
+      b.vx = 0; b.vy = 0;
+      const dx = (b.ox + b.w * 0.5) - holeCX;
+      const dy = (b.oy + b.h * 0.5) - holeCY;
+      b.delay = Math.sqrt(dx * dx + dy * dy) * 0.0003;
+    }
+  }
+}
+
+/* ================================================================
+   MENU TOGGLE
+================================================================ */
+function toggleMenu() {
+  menuOpen = !menuOpen;
+  const nav = document.getElementById('mainNav');
+  const overlay = document.querySelector('.nav-overlay');
+  const btn = document.getElementById('menuBtn');
+  if (menuOpen) {
+    openHole();
+    nav.classList.add('open');
+    overlay.classList.add('open');
+    btn.classList.add('active');
+  } else {
+    closeHole();
+    nav.classList.remove('open');
+    overlay.classList.remove('open');
+    btn.classList.remove('active');
+  }
+  startLoop();
+}
+
+function closeMenu() {
+  if (!menuOpen) return;
+  menuOpen = false;
+  document.getElementById('mainNav').classList.remove('open');
+  document.querySelector('.nav-overlay').classList.remove('open');
+  document.getElementById('menuBtn').classList.remove('active');
+  closeHole(); startLoop();
+}
+
+document.addEventListener('click', e => {
+  if (menuOpen && !e.target.closest('#menuBtn') && !e.target.closest('.nav-overlay')) closeMenu();
+});
+
+function navigateTo(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  closeMenu();
+  setTimeout(() => {
+    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 24, behavior: 'smooth' });
+  }, 80);
+}
+
+/* ================================================================
+   MEDIA FILTER
+================================================================ */
+function filterMedia(e, type) {
+  document.querySelectorAll('.media-filter').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  let visible = 0;
+  document.querySelectorAll('.media-card').forEach(card => {
+    const match = type === 'all' || card.dataset.type === type;
+    card.classList.toggle('visible', match);
+    if (match) visible++;
+  });
+  document.getElementById('mediaGrid').dataset.filter = type;
+  document.getElementById('mediaEmpty').style.display = visible === 0 ? 'block' : 'none';
+}
+
+/* ================================================================
+   LIGHTBOX
+================================================================ */
+function openLightbox(src, caption) {
+  if (!src) return;
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxCaption').textContent = '// ' + caption.toUpperCase() + ' //';
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('lightbox-close')) return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+/* ================================================================
+   TYPEWRITER
+================================================================ */
+const BIO_TEXT = 'Studying European Business Management at TH Wildau. Leading a music collective in Bad Saarow — connecting local musicians, running sessions and building an underground scene from scratch.';
+
+function typewriter(el, text, speed) {
+  if (REDUCE) { el.textContent = text; return; }
+  let i = 0;
+  const cursor = document.createElement('span');
+  cursor.className = 'tw-cursor';
+  cursor.setAttribute('aria-hidden', 'true');
+  el.appendChild(cursor);
+
+  const tick = () => {
+    if (i < text.length) {
+      el.insertBefore(document.createTextNode(text[i++]), cursor);
+      setTimeout(tick, speed + Math.random() * 30);
+    } else {
+      cursor.remove();
+    }
+  };
+  tick();
+}
+
+/* ================================================================
+   STATS COUNTER (arcade coin-counter)
+================================================================ */
+function animateCounter(el, target, duration) {
+  if (REDUCE) { el.textContent = target; return; }
+  const steps = 20;
+  const step  = duration / steps;
+  let cur     = 0;
+  const inc   = Math.ceil(target / steps);
+  const tick = () => {
+    cur = Math.min(cur + inc, target);
+    el.textContent = cur;
+    if (cur < target) setTimeout(tick, step);
+  };
+  tick();
+}
+
+/* ================================================================
+   INTERSECTION OBSERVER — scroll reveals + triggers
+================================================================ */
+
+function makeRevealObs(callback, threshold) {
+  return new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      callback(en.target);
+      en.target._revealObs && en.target._revealObs.unobserve(en.target);
+    });
+  }, { threshold, rootMargin: '0px 0px -40px 0px' });
+}
+
+const revealObs = makeRevealObs(el => el.classList.add('revealed'), 0.1);
+
+const bioObs = makeRevealObs(el => {
+  if (el._twDone) return;
+  el._twDone = true;
+  typewriter(el, BIO_TEXT, 28);
+}, 0.3);
+
+const statsObs = makeRevealObs(el => {
+  el.querySelectorAll('.stat-num[data-target]').forEach(n => {
+    animateCounter(n, parseInt(n.dataset.target, 10), 900);
+  });
+}, 0.2);
+
+// Store observer ref so unobserve works
+function observeWith(obs, el) {
+  el._revealObs = obs;
+  obs.observe(el);
+}
+
+/* ================================================================
+   INIT STATIC CANVASES
+================================================================ */
+function initProfileBrick() {
+  document.querySelectorAll('[data-brick-small]').forEach(c => {
+    const p = c.parentElement;
+    c.width = p.offsetWidth; c.height = p.offsetHeight;
+    fillWall(c.getContext('2d'), c.width, c.height, 12, 34, 3);
+  });
+}
+
+function initStatic() {
+  document.querySelectorAll('[data-brick]').forEach(c => {
+    const p = c.parentElement;
+    c.width = p.offsetWidth; c.height = p.offsetHeight;
+    fillWall(c.getContext('2d'), c.width, c.height, 22, 56, 3);
+  });
+  const fc = document.getElementById('footerCanvas');
+  if (fc) {
+    fc.width = fc.parentElement.offsetWidth;
+    fc.height = fc.parentElement.offsetHeight;
+    fillWall(fc.getContext('2d'), fc.width, fc.height, 22, 56, 3);
+  }
+}
+
+function initMain() {
+  const canvas = document.getElementById('brickCanvas');
+  const header = document.getElementById('siteHeader');
+  canvas.width  = canvasW = header.offsetWidth;
+  canvas.height = canvasH = header.offsetHeight;
+  holeCX = canvasW * 0.76;
+  holeCY = canvasH * 0.50;
+  buildGrid(canvasW, canvasH);
+  renderMain();
+}
+
+/* ================================================================
+   BOOT
+================================================================ */
+function initAll() {
+  initMain();
+  initStatic();
+  initProfileBrick();
+
+  // Scroll reveals — immediate check via requestAnimationFrame so viewport elements fire too
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => observeWith(revealObs, el));
+    document.querySelectorAll('.stagger').forEach(el => observeWith(revealObs, el));
+
+    const bio = document.getElementById('heroBio');
+    if (bio) observeWith(bioObs, bio);
+
+  });
+
+}
+
+window.addEventListener('load',   initAll);
+window.addEventListener('resize', () => { initMain(); initStatic(); initProfileBrick(); });
+
+// Pass mouse X to iframe for rotation parallax
+document.addEventListener('mousemove', e => {
+  const mx = (e.clientX / window.innerWidth - 0.5) * 1.2;
+  document.getElementById('heroModel')?.contentWindow?.postMessage({ mouseX: mx }, '*');
+  document.getElementById('heroModel2')?.contentWindow?.postMessage({ mouseX: mx }, '*');
+});
+</script>
+</body>
+</html>
